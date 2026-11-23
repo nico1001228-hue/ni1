@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>剪刀石頭布｜先取得 5 勝</title>
+<style>
+:root { color-scheme: light; --ink:#20263a; --muted:#667085; --panel:#fff; --accent:#6558d3; --bg:#f2f4fb; }
+* { box-sizing:border-box; }
+body { margin:0; min-height:100vh; padding:28px 16px; font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif; color:var(--ink); background:linear-gradient(145deg,#eef0ff,#f8f9fc 55%,#e8f6f4); }
+main { width:min(720px,100%); margin:auto; }
+header { text-align:center; margin:12px 0 24px; }
+h1 { margin:0 0 8px; font-size:clamp(1.8rem,5vw,2.6rem); }
+.subtitle { color:var(--muted); margin:0; }
+.panel { background:var(--panel); border:1px solid #e5e7f0; border-radius:22px; padding:22px; box-shadow:0 12px 35px #28305a12; margin:16px 0; }
+label { display:block; font-weight:650; margin:12px 0 6px; }
+input { width:100%; padding:12px 14px; border:1px solid #cfd3e2; border-radius:12px; font:inherit; }
+button { cursor:pointer; border:0; border-radius:14px; padding:12px 18px; font:inherit; font-weight:700; transition:transform .12s,filter .12s; }
+button:hover { filter:brightness(1.04); transform:translateY(-1px); }
+button:focus-visible,input:focus-visible { outline:3px solid #aaa2ff; outline-offset:2px; }
+.primary { background:var(--accent); color:white; width:100%; margin-top:16px; }
+.hidden { display:none !important; }
+.score { display:grid; grid-template-columns:1fr 1fr; gap:12px; text-align:center; }
+.score article { background:#f5f6fc; padding:16px; border-radius:16px; }
+.score strong { display:block; font-size:2.2rem; }
+.choices { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:18px 0; }
+.choice { background:#f0efff; color:#393078; font-size:1.2rem; padding:20px 8px; }
+.choice span { display:block; font-size:2rem; margin-bottom:6px; }
+.status { min-height:54px; text-align:center; font-weight:650; padding:12px; border-radius:14px; background:#f7f7fb; }
+.log { color:var(--muted); text-align:center; min-height:24px; margin:10px 0 0; }
+.result { text-align:center; font-size:1.15rem; font-weight:700; }
+.secondary { background:#e9e7ff; color:#393078; }
+.actions { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:16px; }
+footer { text-align:center; color:var(--muted); font-size:.9rem; margin:22px 0; }
+@media(max-width:480px){ .panel{padding:17px}.choices{gap:7px}.choice{font-size:1rem;padding:15px 4px} }
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>✊ ✋ ✌️ 剪刀石頭布</h1>
+  <p class="subtitle">終極大對決｜先取得 5 勝的一方獲勝！</p>
+</header>
+
+<section class="panel" id="setup">
+  <h2>🧭 冒險者登入</h2>
+  <label for="playerName">你的冒險者名字</label>
+  <input id="playerName" maxlength="24" placeholder="請輸入你的名字">
+  <label for="equipment">你的使用裝備</label>
+  <input id="equipment" maxlength="30" placeholder="例如：黃金鍵盤、魔法魔杖">
+  <button class="primary" id="startBtn">開始挑戰</button>
+</section>
+
+<section class="panel hidden" id="game">
+  <p id="welcome" class="result"></p>
+  <div class="score">
+    <article><span id="playerLabel">你</span><strong id="playerScore">0</strong>勝</article>
+    <article>🤖 電腦<strong id="computerScore">0</strong>勝</article>
+  </div>
+  <p class="status" id="status" aria-live="polite">請選擇你的拳！</p>
+  <div class="choices" id="choices">
+    <button class="choice" data-choice="剪刀"><span>✌️</span>剪刀</button>
+    <button class="choice" data-choice="石頭"><span>✊</span>石頭</button>
+    <button class="choice" data-choice="布"><span>✋</span>布</button>
+  </div>
+  <p class="log" id="roundInfo">第 1 回合</p>
+  <div id="gameOver" class="hidden">
+    <p class="result" id="finalResult"></p>
+    <div class="actions">
+      <button class="primary" id="againBtn">再玩一次</button>
+      <button class="secondary" id="exitBtn">結束遊戲</button>
+    </div>
+  </div>
+</section>
+<footer>平手不計分；先拿到 5 勝就會結束本場遊戲。</footer>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const options = ["剪刀", "石頭", "布"];
+let name = "", equipment = "", playerWins = 0, computerWins = 0, round = 1, finished = false;
+
+$("startBtn").addEventListener("click", () => {
+  name = $("playerName").value.trim();
+  equipment = $("equipment").value.trim();
+  if (!name || !equipment) {
+    alert("請輸入冒險者名字和使用裝備！");
+    return;
+  }
+  $("setup").classList.add("hidden");
+  $("game").classList.remove("hidden");
+  $("welcome").textContent = `歡迎勇敢的冒險者【${name}】！你已裝備【${equipment}】，準備迎接挑戰！`;
+  resetGame();
+});
+
+function resetGame() {
+  playerWins = 0; computerWins = 0; round = 1; finished = false;
+  $("playerLabel").textContent = name;
+  $("playerScore").textContent = "0";
+  $("computerScore").textContent = "0";
+  $("status").textContent = "請選擇你的拳！";
+  $("roundInfo").textContent = "第 1 回合";
+  $("choices").classList.remove("hidden");
+  $("gameOver").classList.add("hidden");
+}
+
+$("choices").addEventListener("click", event => {
+  const button = event.target.closest("button[data-choice]");
+  if (!button || finished) return;
+  play(button.dataset.choice);
+});
+
+function play(playerChoice) {
+  const computerChoice = options[Math.floor(Math.random() * options.length)];
+  let message = `你出了${playerChoice}，電腦出了${computerChoice}。`;
+  if (playerChoice === computerChoice) {
+    message += " 平手！沒有人得分。";
+  } else if (
+    (playerChoice === "剪刀" && computerChoice === "布") ||
+    (playerChoice === "石頭" && computerChoice === "剪刀") ||
+    (playerChoice === "布" && computerChoice === "石頭")
+  ) {
+    playerWins++;
+    message += " 🎉 這回合你贏了！";
+  } else {
+    computerWins++;
+    message += " 💥 這回合電腦贏了！";
+  }
+  $("playerScore").textContent = playerWins;
+  $("computerScore").textContent = computerWins;
+  $("status").textContent = message;
+  round++;
+  $("roundInfo").textContent = `下一回合：第 ${round} 回合`;
+  if (playerWins === 5 || computerWins === 5) endGame();
+}
+
+function endGame() {
+  finished = true;
+  $("choices").classList.add("hidden");
+  $("gameOver").classList.remove("hidden");
+  $("roundInfo").textContent = "本場遊戲結束";
+  $("finalResult").textContent = playerWins === 5
+    ? `🏆 恭喜【${name}】以 ${playerWins}：${computerWins} 擊敗電腦，成為猜拳大師！`
+    : `💻 很可惜，電腦以 ${computerWins}：${playerWins} 獲得最終勝利，下次再來挑戰吧！`;
+}
+
+$("againBtn").addEventListener("click", resetGame);
+$("exitBtn").addEventListener("click", () => {
+  $("game").classList.add("hidden");
+  $("setup").classList.remove("hidden");
+  $("playerName").value = name;
+  $("equipment").value = equipment;
+});
+</script>
+</body>
+</html>
